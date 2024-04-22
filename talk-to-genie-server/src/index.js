@@ -9,6 +9,7 @@ const path = require('path');
 const os = require('os');
 const { uploadFile, downloadFile } = require('./s3-utils');
 const { startTranscriptionJob, checkIfTranscriptionDone } = require('./transcribe');
+const { getChatCompletionCached } = require('./openai-utils');
  
 const app = express();
 app.use(cors());
@@ -77,6 +78,10 @@ async function orchestrator(blob, fileName) {
     }
 
     const transcripts = await downloadFile(outputFile);
+
+    const openAIResponse = await getChatCompletionCached(transcripts);
+
+    
 
   } catch (e) {
     console.log("Failed to do job for file: ", fileName);
