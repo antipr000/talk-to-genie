@@ -5,7 +5,8 @@ import { Navbar, NavbarGroup, NavbarHeading, Alignment } from '@blueprintjs/core
 import "@blueprintjs/core/lib/css/blueprint.css";
 // include blueprint-icons.css for icon font support
 import "@blueprintjs/icons/lib/css/blueprint-icons.css";
-import AudioInput from './components/AudioInput';
+import 'react-h5-audio-player/lib/styles.css';
+import HomePage from './components/HomePage';
 
 const getMicrophonePermissionState = async () => {
   const permission = await navigator.permissions.query({ name: 'microphone' });
@@ -42,8 +43,7 @@ function App() {
       </Navbar>
 
       <div className="body-container">
-        <AudioInput />
-        <audio id="test-audio" style={{visibility: 'hidden'}}/>
+        <HomePage />
       </div>
     </div>
   );

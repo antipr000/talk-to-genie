@@ -35,7 +35,9 @@ function startTranscriptionJob(fileName) {
 }
 
 function checkIfTranscriptionDone(fileName) {
+    console.log("Filename: ", fileName);
     const [name, _] = fileName.split(".");
+    console.log("Name: ", name);
     return new Promise((resolve, reject) => {
         const getParams = {
             TranscriptionJobName: name
@@ -45,10 +47,20 @@ function checkIfTranscriptionDone(fileName) {
             if (err) {
                 resolve(null);
             } else {
+                if (!data.TranscriptionJob.Transcript.TranscriptFileUri) {
+                  resolve(null);
+                }
+                console.log("Here", data.TranscriptionJob.Transcript.TranscriptFileUri);
                 resolve(data.TranscriptionJob.Transcript.TranscriptFileUri);
             }
           });
     });
 }
+
+// checkIfTranscriptionDone('1a2590ba-ab26-4c23-8bc0-bb751d4d4e66.wav').then((res) => {
+//   const splitted = res.split("/");
+//   const outputFile = splitted[splitted.length - 1];
+//   console.log(outputFile);
+// });
 
 module.exports = { startTranscriptionJob, checkIfTranscriptionDone };

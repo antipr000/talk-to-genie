@@ -8,6 +8,18 @@ AWS.config.update({
 
 const s3 = new AWS.S3();
 
+function uploadFileInternal(params) {
+  return new Promise((resolve, reject) => {
+    s3.upload(params, (err, data) => {
+        if (err) {
+            reject(err);
+        } else {
+            resolve(true);
+        }
+    });
+  });
+}
+
 
 function uploadFile(fileName, data) {
     const params = {
@@ -16,15 +28,7 @@ function uploadFile(fileName, data) {
         Body: data
       };
 
-      return new Promise((resolve, reject) => {
-        s3.upload(params, (err, data) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(true);
-            }
-        });
-      })
+      return uploadFileInternal(params);
       
 }
 
@@ -48,4 +52,4 @@ function downloadFile(fileName) {
       
 }
 
-module.exports = { uploadFile, downloadFile };
+module.exports = { uploadFile, uploadFileInternal, downloadFile };

@@ -1,11 +1,9 @@
 import { useState } from "react";
 import RecordRTC, {StereoAudioRecorder} from "recordrtc";
-import useSocket from "./useSocket";
 
 export default function useAudioRecorder() {
     const [recorder, setRecorder] = useState(null);
     const [isRecording, setIsRecording] = useState(false);
-    const { socketIO } = useSocket();
 
     function startRecording() {
         navigator.getUserMedia({
@@ -36,23 +34,14 @@ export default function useAudioRecorder() {
         });
     }
 
-    function stopRecording() {
+    function stopRecording(cb) {
         if (!isRecording) {
             return;
         }
 
         recorder.stopRecording(function() {
             recorder.getDataURL(function(audioDataURL) {
-                var files = {
-                    audio: {
-                        type: recorder.getBlob().type || 'audio/wav',
-                        dataURL: audioDataURL
-                    }
-                };
-                console.log(files);
-                if (socketIO) {
-                    socketIO.emit('message', files);
-                }
+                cb(audioDataURL);
             });
             setIsRecording(false);
         });

@@ -9,7 +9,8 @@ const path = require('path');
 const os = require('os');
 const { uploadFile, downloadFile } = require('./s3-utils');
 const { startTranscriptionJob, checkIfTranscriptionDone } = require('./transcribe');
-const { getChatCompletionCached } = require('./openai-utils');
+const { getChatCompletionCached, getChatCompletion } = require('./openai-utils');
+const { convertTextToSpeech } = require('./polly-utils');
  
 const app = express();
 app.use(cors());
@@ -22,13 +23,17 @@ const io = socketIo(server);
 io.on('connection', (socket) => {
   console.log('Here connected to client');
   // Handle events (e.g., chat messages, notifications) here
-  socket.on('message', (data) => {
-    const dataURL = data.audio.dataURL;
+  socket.on('message', async (data) => {
+    console.log("Received message");
+    const dataURL = data.audio;
     const fileName = `${uuidv4()}.wav`; 
     const blob = dataURLtoBlob(dataURL);
-    console.log("Blob is: ", blob);
-    saveBlob(blob, fileName);
-  })
+    const audioUrl = await orchestrator(blob, fileName);
+    if (audioUrl) {
+       // const audioUrl = await fakeOrchestrator(blob, fileName);
+      socket.emit("message", { audio: audioUrl, id: fileName.split(".")[0] });
+    }
+  });
 });
 
 server.listen(8000, () => {
@@ -46,18 +51,16 @@ function dataURLtoBlob(dataURL) {
   return new Blob([ab], { type: mimeString });
 }
 
-async function saveBlob(blob, fileName) {
-  // Convert Blob to Buffer
-  const buffer = Buffer.from( await blob.arrayBuffer() );
-  uploadFile(fileName, buffer);
-}
 
 async function orchestrator(blob, fileName) {
   // Upload the audio file to s3
+  console.log("Orchestrating: ", fileName);
   try {
-    await uploadFile(fileName, data);
+    const buffer = Buffer.from(await blob.arrayBuffer());
+    await uploadFile(fileName, buffer);
+    console.log("File uploaded");
     await startTranscriptionJob(fileName);
-
+    console.log("Transcription job started.");
     iterations = 10;
     let outputFile = null;
     while(iterations > 0) {
@@ -73,19 +76,34 @@ async function orchestrator(blob, fileName) {
       iterations -= 1;
     }
 
+    console.log("Transcription completed: ", outputFile);
+
     if (outputFile === null) {
       throw new Error("Failed to fetch transcription result");
     }
 
     const transcripts = await downloadFile(outputFile);
+    console.log("Transcripts generated");
 
-    const openAIResponse = await getChatCompletionCached(transcripts);
+    const openAISuggestion = await getChatCompletion(transcripts);
+    console.log("OpenAI suggestions generated: ", openAISuggestion);
 
-    
+    if (!openAISuggestion) {
+      console.log("Failed to generate OpenAI suggestion for given request");
+      return null;
+    }
 
+    return await convertTextToSpeech(openAISuggestion, fileName);
   } catch (e) {
     console.log("Failed to do job for file: ", fileName);
+    console.log(e);
+    return null;
   }
+}
+
+async function fakeOrchestrator(blob, fileName) {
+  await sleep(1000);
+  return "https://intermediary-audio-files.s3.amazonaws.com/response-audios/filename.mp3";
 }
 
 async function sleep(ms) {
