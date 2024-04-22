@@ -5,7 +5,11 @@ const socketIo = require('socket.io');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
-
+const path = require('path');
+const os = require('os');
+const { uploadFile, downloadFile } = require('./s3-utils');
+const { startTranscriptionJob, checkIfTranscriptionDone } = require('./transcribe');
+ 
 const app = express();
 app.use(cors());
 const server = http.createServer(app);
@@ -19,7 +23,7 @@ io.on('connection', (socket) => {
   // Handle events (e.g., chat messages, notifications) here
   socket.on('message', (data) => {
     const dataURL = data.audio.dataURL;
-    const fileName = uuidv4(); 
+    const fileName = `${uuidv4()}.wav`; 
     const blob = dataURLtoBlob(dataURL);
     console.log("Blob is: ", blob);
     saveBlob(blob, fileName);
@@ -44,6 +48,41 @@ function dataURLtoBlob(dataURL) {
 async function saveBlob(blob, fileName) {
   // Convert Blob to Buffer
   const buffer = Buffer.from( await blob.arrayBuffer() );
+  uploadFile(fileName, buffer);
+}
 
-  fs.writeFile(`${fileName}.wav`, buffer, () => console.log('audio saved!') );
+async function orchestrator(blob, fileName) {
+  // Upload the audio file to s3
+  try {
+    await uploadFile(fileName, data);
+    await startTranscriptionJob(fileName);
+
+    iterations = 10;
+    let outputFile = null;
+    while(iterations > 0) {
+      const result = await checkIfTranscriptionDone(fileName);
+      if (result === null) {
+        // Sleep for a second
+        await sleep(1000);
+      } else {
+        const splitted = result.split("/");
+        outputFile = splitted[splitted.length - 1];
+        break;
+      }
+      iterations -= 1;
+    }
+
+    if (outputFile === null) {
+      throw new Error("Failed to fetch transcription result");
+    }
+
+    const transcripts = await downloadFile(outputFile);
+
+  } catch (e) {
+    console.log("Failed to do job for file: ", fileName);
+  }
+}
+
+async function sleep(ms) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
