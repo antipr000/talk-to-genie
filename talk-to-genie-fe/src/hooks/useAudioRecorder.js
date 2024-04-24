@@ -1,50 +1,28 @@
 import { useState } from "react";
 import RecordRTC, {StereoAudioRecorder} from "recordrtc";
+import { peerConnection, negotiate } from "../webrtc.utils";
 
 export default function useAudioRecorder() {
-    const [recorder, setRecorder] = useState(null);
     const [isRecording, setIsRecording] = useState(false);
+    const [audioStream, setAudioStream] = useState(null);
 
-    function startRecording() {
-        navigator.getUserMedia({
-            audio: true
-        }, function (stream) {
-            const recordAudio = RecordRTC(stream, {
-                type: 'audio',
-                mimeType: 'audio/webm',
-                sampleRate: 44100,
-                // used by StereoAudioRecorder
-                // the range 22050 to 96000.
-                // let us force 16khz recording:
-                desiredSampRate: 16000,
-             
-                // MediaStreamRecorder, StereoAudioRecorder, WebAssemblyRecorder
-                // CanvasRecorder, GifRecorder, WhammyRecorder
-                recorderType: StereoAudioRecorder,
-                // Dialogflow / STT requires mono audio
-                numberOfAudioChannels: 1
-            });
-            setRecorder(recordAudio);
-            recordAudio.startRecording();
-            setIsRecording(true);
-        }, function(error) {
-            console.error("Error recording audio", JSON.stringify(error));
-            setIsRecording(false);
-            setRecorder(null);
-        });
+    async function startRecording() {
+        const audio = await navigator.mediaDevices.getUserMedia({audio: true});
+        peerConnection.onnegotiationneeded = () => {
+            console.log("Negotiation needed!");
+            negotiate().then(() => console.log("Negotiation done"));
+        }
+        setAudioStream(audio);
+        peerConnection.addTrack(audio.getAudioTracks()[0], audio);
+        setIsRecording(true);
     }
 
-    function stopRecording(cb) {
-        if (!isRecording) {
-            return;
-        }
-
-        recorder.stopRecording(function() {
-            recorder.getDataURL(function(audioDataURL) {
-                cb(audioDataURL);
-            });
-            setIsRecording(false);
-        });
+    async function stopRecording(cb) {
+        const audioTrack = audioStream.getAudioTracks()[0];
+        audioTrack.stop();
+        setAudioStream(null);
+        setIsRecording(false);
+        cb(null);
     }
 
     return { startRecording, stopRecording, isRecording };

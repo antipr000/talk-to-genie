@@ -45,10 +45,10 @@ io.on('connection', (socket) => {
 
   socket.on('peer-connect', async ({ sdp, id }) => {
     console.log("Here, sdp is", sdp);
-
+    const remoteId = uuidv4();
     const answer = await initiateConnection(sdp, id);
     if (answer) {
-      socket.emit('peer-connect', { sdp: answer, id: 2 });
+      socket.emit('peer-connect', { sdp: answer, id: remoteId });
     }
   });
 

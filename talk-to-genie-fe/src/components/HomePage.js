@@ -31,7 +31,7 @@ export default function HomePage() {
     useEffect(() => {
         socket.on('connect', () => {
             setIsSocketReady(true);
-            initiateWebRTCConnection(1);
+            initiateWebRTCConnection();
         });
 
         socket.on("message", (data) => {

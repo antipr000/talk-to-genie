@@ -1,4 +1,5 @@
 import { socket } from "./socket";
+import { v4 } from 'uuid';
 
 let peerConnection, dc;
 const remoteOffers = {};
@@ -12,7 +13,14 @@ const setupDataChannel = () => {
     dc.onclose = e => console.log("closed!!!!!!");
 }
 
-const initiateWebRTCConnection = async (id) => {
+const negotiate = async () => {
+    const id = v4();
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    socket.emit('peer-connect', {sdp: peerConnection.localDescription, id: id});
+}
+
+const initiateWebRTCConnection = async () => {
     peerConnection = new RTCPeerConnection({
         sdpSemantics: 'unified-plan'
     });
@@ -21,9 +29,7 @@ const initiateWebRTCConnection = async (id) => {
         socket.emit('newICECandidate', e.candidate);
     };
     setupDataChannel();
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    socket.emit('peer-connect', {sdp: peerConnection.localDescription, id: id});
+    await negotiate();
 }
 
 socket.on('newICECandidate', (params) => {
@@ -43,4 +49,4 @@ socket.on('peer-connect', async ({ sdp, id }) => {
 })
 
 
-export { peerConnection, dc, initiateWebRTCConnection };
+export { peerConnection, dc, initiateWebRTCConnection, negotiate };
