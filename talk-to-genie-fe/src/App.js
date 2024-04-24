@@ -7,6 +7,7 @@ import "@blueprintjs/core/lib/css/blueprint.css";
 import "@blueprintjs/icons/lib/css/blueprint-icons.css";
 import 'react-h5-audio-player/lib/styles.css';
 import HomePage from './components/HomePage';
+import { socket } from './socket';
 
 const getMicrophonePermissionState = async () => {
   const permission = await navigator.permissions.query({ name: 'microphone' });

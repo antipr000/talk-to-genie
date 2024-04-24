@@ -2,15 +2,20 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
-const path = require('path');
-const os = require('os');
 const { uploadFile, downloadFile } = require('./s3-utils');
 const { startTranscriptionJob, checkIfTranscriptionDone } = require('./transcribe');
 const { getChatCompletionCached, getChatCompletion } = require('./openai-utils');
 const { convertTextToSpeech } = require('./polly-utils');
+const { nonstandard: {
+          RTCAudioSink,
+          RTCVideoSink
+        },
+RTCPeerConnection,
+RTCSessionDescription,
+RTCIceCandidate } = require('wrtc');
+const { pc, initiateConnection } = require('./wrtc-utils');
  
 const app = express();
 app.use(cors());
@@ -18,21 +23,47 @@ const server = http.createServer(app);
 const io = socketIo(server);
 
 
-
-
 io.on('connection', (socket) => {
   console.log('Here connected to client');
-  // Handle events (e.g., chat messages, notifications) here
+  
+
+  socket.on('connected', () => {
+    console.log("Connected via socket");
+    pc.onicecandidate = (event) => {
+      console.log("ICE candidate: ", event.candidate);
+      socket.emit('newICECandidate', event);
+    }
+  });
+
+  socket.on('newICECandidate', async (candidate) => {
+    if (candidate) {
+      console.log('Received ICE candidate', candidate);
+
+      await pc.addIceCandidate(candidate);
+    }
+  });
+
+  socket.on('peer-connect', async ({ sdp, id }) => {
+    console.log("Here, sdp is", sdp);
+
+    const answer = await initiateConnection(sdp, id);
+    if (answer) {
+      socket.emit('peer-connect', { sdp: answer, id: 2 });
+    }
+  });
+
   socket.on('message', async (data) => {
     console.log("Received message");
-    const dataURL = data.audio;
-    const fileName = `${uuidv4()}.wav`; 
-    const blob = dataURLtoBlob(dataURL);
-    const audioUrl = await orchestrator(blob, fileName);
-    if (audioUrl) {
-       // const audioUrl = await fakeOrchestrator(blob, fileName);
-      socket.emit("message", { audio: audioUrl, id: fileName.split(".")[0] });
-    }
+    // const dataURL = data.audio;
+    // const fileName = `${uuidv4()}.wav`; 
+    // const blob = dataURLtoBlob(dataURL);
+    // const audioUrl = await orchestrator(blob, fileName);
+    // if (audioUrl) {
+    //    // const audioUrl = await fakeOrchestrator(blob, fileName);
+    //   socket.emit("message", { audio: audioUrl, id: fileName.split(".")[0] });
+    // }
+
+
   });
 });
 

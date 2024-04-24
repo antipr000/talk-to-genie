@@ -3,6 +3,7 @@ import UserAudio from "./UserAudio";
 import BotResponse from "./BotResponse";
 import AudioInput from "./AudioInput";
 import { socket } from "../socket";
+import { initiateWebRTCConnection, peerConnection, dc } from "../webrtc.utils";
 
 const AudioCompRenderer = ({type, audio, computed, index, handleComputeEnd}) => {
     if (type === 'user') {
@@ -17,7 +18,8 @@ export default function HomePage() {
     const [isSocketReady, setIsSocketReady] = useState(false);
 
     const handleNewUserAudio = (encodedAudio) => {
-        setAudios(prevState => [...prevState, {type: "user", audio: encodedAudio, computed: false}]);
+        setAudios(prevState => 
+            [...prevState, {type: "user", audio: encodedAudio, computed: false}]);
     }
 
     const handleComputeEnd = (index) => {
@@ -29,7 +31,9 @@ export default function HomePage() {
     useEffect(() => {
         socket.on('connect', () => {
             setIsSocketReady(true);
+            initiateWebRTCConnection(1);
         });
+
         socket.on("message", (data) => {
             console.log("Received message", data);
             const encodedAudio = data.audio;
@@ -52,6 +56,12 @@ export default function HomePage() {
         <div className="d-flex flex-column" style={{ gap: "30px" }}>
             { audios.map((audio, index) => <AudioCompRenderer {...audio} index={index} handleComputeEnd={handleComputeEnd}/>) }
             <AudioInput addUserAudio={handleNewUserAudio}/>
+
+            <button 
+            disabled={!dc}
+            onClick={() => {dc.send("Hello sending message!")}}>
+                Click me
+            </button>
         </div>
     )
 }
