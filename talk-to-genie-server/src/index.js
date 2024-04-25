@@ -2,7 +2,7 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4, v4 } = require('uuid');
 const cors = require('cors');
 const { uploadFile, downloadFile } = require('./s3-utils');
 const { startTranscriptionJob, checkIfTranscriptionDone } = require('./transcribe');
@@ -11,11 +11,10 @@ const { convertTextToSpeech } = require('./polly-utils');
 const { nonstandard: {
           RTCAudioSink,
           RTCVideoSink
-        },
-RTCPeerConnection,
-RTCSessionDescription,
-RTCIceCandidate } = require('wrtc');
-const { pc, initiateConnection } = require('./wrtc-utils');
+        } } = require('wrtc');
+const { pc, initiateConnection, startStreaming, stopStreaming } = require('./wrtc-utils');
+const fs = require('fs');
+const path = require('path');
  
 const app = express();
 app.use(cors());
@@ -52,18 +51,25 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('message', async (data) => {
-    console.log("Received message");
-    // const dataURL = data.audio;
-    // const fileName = `${uuidv4()}.wav`; 
-    // const blob = dataURLtoBlob(dataURL);
-    // const audioUrl = await orchestrator(blob, fileName);
-    // if (audioUrl) {
-    //    // const audioUrl = await fakeOrchestrator(blob, fileName);
-    //   socket.emit("message", { audio: audioUrl, id: fileName.split(".")[0] });
-    // }
+  socket.on('start-streaming', () => {
+    startStreaming();
+  });
 
+  socket.on('stop-streaming', async () => {
+    const fileName = `${v4()}.mp3`;
+    const localPath = await stopStreaming(fileName);
 
+    // Upload file to S3
+    const data = fs.readFileSync(localPath);
+    const uploadedUrl = await uploadFile(fileName, data);
+  
+    console.log("File uploaded");
+    socket.emit('audio-upload', { url: uploadedUrl });
+
+    const audioUrl = await orchestrator(fileName);
+    if (audioUrl) {
+      socket.emit("message", { audio: audioUrl, id: fileName.split(".")[0] });
+    }
   });
 });
 
@@ -83,12 +89,10 @@ function dataURLtoBlob(dataURL) {
 }
 
 
-async function orchestrator(blob, fileName) {
+async function orchestrator(fileName) {
   // Upload the audio file to s3
   console.log("Orchestrating: ", fileName);
   try {
-    const buffer = Buffer.from(await blob.arrayBuffer());
-    await uploadFile(fileName, buffer);
     console.log("File uploaded");
     await startTranscriptionJob(fileName);
     console.log("Transcription job started.");

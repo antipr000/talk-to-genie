@@ -5,9 +5,15 @@ import AudioInput from "./AudioInput";
 import { socket } from "../socket";
 import { initiateWebRTCConnection, peerConnection, dc } from "../webrtc.utils";
 
-const AudioCompRenderer = ({type, audio, computed, index, handleComputeEnd}) => {
+const AudioCompRenderer = ({type, audio, computed, loading, index, handleComputeEnd}) => {
     if (type === 'user') {
-        return <UserAudio key={index} encodedAudio={audio} computed={computed} index={index} handleComputeEnd={handleComputeEnd}/>
+        return <UserAudio 
+        key={index} 
+        encodedAudio={audio} 
+        computed={computed}
+        loading={loading} 
+        index={index} 
+        handleComputeEnd={handleComputeEnd}/>
     } else {
         return <BotResponse key={index} encodedAudio={audio} index={index}/>
     }
@@ -17,9 +23,10 @@ export default function HomePage() {
     const [audios, setAudios] = useState([]);
     const [isSocketReady, setIsSocketReady] = useState(false);
 
-    const handleNewUserAudio = (encodedAudio) => {
+    const handleNewUserAudio = () => {
         setAudios(prevState => 
-            [...prevState, {type: "user", audio: encodedAudio, computed: false}]);
+            [...prevState, 
+                {type: "user", audio: null, computed: false, loading: true}]);
     }
 
     const handleComputeEnd = (index) => {
@@ -28,13 +35,28 @@ export default function HomePage() {
         setAudios(allAudios);
     }
 
+    
+
     useEffect(() => {
         socket.on('connect', () => {
             setIsSocketReady(true);
             initiateWebRTCConnection();
         });
 
-        socket.on("message", (data) => {
+        function handleAudioUpload(data) {
+            const url = data.url;
+            setAudios(prevState => {
+                const allAudios = [...prevState];
+                console.log(allAudios);
+                const index = allAudios.findIndex(el => el.loading);
+                allAudios[index].audio = url;
+                allAudios[index].loading = false;
+                console.log("updated audios", allAudios);
+                return allAudios;
+            });
+        }
+    
+        function handleMessage(data) {
             console.log("Received message", data);
             const encodedAudio = data.audio;
             const id = data.id;
@@ -45,7 +67,11 @@ export default function HomePage() {
                 }
                 return prevState;
             });
-        })
+        }
+
+        socket.on('audio-upload', handleAudioUpload);
+
+        socket.on("message", handleMessage);
     }, []);
 
     if (!isSocketReady) {

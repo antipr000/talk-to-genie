@@ -26,16 +26,14 @@ function convertTextToSpeech(text, fileName) {
                 reject(err);
             } else {
                 console.log('Speech synthesized successfully');
-
+                
                 uploadFileInternal({
                     Bucket: process.env.AWS_AUDIO_BUCKET,
                     Key: `${process.env.AWS_POLLY_AUDIO_BUCKET_PREFIX}/${name}.mp3`,
                     Body: data.AudioStream
-                }).then(() => {
-                    resolve(`https://${process.env.AWS_AUDIO_BUCKET}.s3.amazonaws.com/${process.env.AWS_POLLY_AUDIO_BUCKET_PREFIX}/${name}.mp3`);
-                }).catch((err) => {
-                    reject(err);
-                });
+                }).then((fileUrl) => {
+                    resolve(fileUrl);
+                }).catch((err) => reject(err));
             }
         });
     });

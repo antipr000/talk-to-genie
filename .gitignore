@@ -3,3 +3,4 @@ talk-to-genie-fe/node_modules/
 talk-to-genie-server/*.env
 talk-to-genie-fe/build/
 talk-to-genie-server/generated/
+talk-to-genie-server/*sock

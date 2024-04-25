@@ -8,13 +8,17 @@ AWS.config.update({
 
 const s3 = new AWS.S3();
 
+const uploadUrl = (params) => {
+  return `https://${params.Bucket}.s3.amazonaws.com/${params.Key}`
+}
+
 function uploadFileInternal(params) {
   return new Promise((resolve, reject) => {
     s3.upload(params, (err, data) => {
         if (err) {
             reject(err);
         } else {
-            resolve(true);
+            resolve(uploadUrl(params));
         }
     });
   });
