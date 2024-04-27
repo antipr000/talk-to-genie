@@ -4,6 +4,9 @@ import BotResponse from "./BotResponse";
 import AudioInput from "./AudioInput";
 import { socket } from "../socket";
 import { initiateWebRTCConnection, peerConnection, dc } from "../webrtc.utils";
+import { Button } from "@blueprintjs/core";
+import RoundIcon from "./RoundIcon";
+import ProcessingSpinner from "./ProcessingSpinner";
 
 const AudioCompRenderer = ({type, audio, computed, loading, index, handleComputeEnd}) => {
     if (type === 'user') {
@@ -22,8 +25,10 @@ const AudioCompRenderer = ({type, audio, computed, loading, index, handleCompute
 export default function HomePage() {
     const [audios, setAudios] = useState([]);
     const [isSocketReady, setIsSocketReady] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const handleNewUserAudio = () => {
+        setIsProcessing(true);
         setAudios(prevState => 
             [...prevState, 
                 {type: "user", audio: null, computed: false, loading: true}]);
@@ -67,6 +72,8 @@ export default function HomePage() {
                 }
                 return prevState;
             });
+
+            setIsProcessing(false);
         }
 
         socket.on('audio-upload', handleAudioUpload);
@@ -79,15 +86,17 @@ export default function HomePage() {
     }
 
     return (
-        <div className="d-flex flex-column" style={{ gap: "30px" }}>
+        <div className="fw d-flex flex-column" style={{ gap: "30px" }}>
+            <div className="d-flex fw" style={{ gap: "30px", justifyContent: "center" }}>
+                <AudioInput addUserAudio={handleNewUserAudio}/>
+                <RoundIcon icon="send-message" onClick={() => {
+                    if (dc) {
+                        dc.send("Ping!")
+                    }
+                }}/>
+            </div>
+            {isProcessing && <ProcessingSpinner />}
             { audios.map((audio, index) => <AudioCompRenderer {...audio} index={index} handleComputeEnd={handleComputeEnd}/>) }
-            <AudioInput addUserAudio={handleNewUserAudio}/>
-
-            <button 
-            disabled={!dc}
-            onClick={() => {dc.send("Hello sending message!")}}>
-                Click me
-            </button>
         </div>
     )
 }

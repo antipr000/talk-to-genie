@@ -8,16 +8,18 @@ const setupDataChannel = () => {
     dc = peerConnection.createDataChannel("sendChannel", {
         reliable: false
     });
-    dc.onmessage =e =>  console.log("messsage received!!!"  + e.data )
+    dc.onmessage = e => {
+        window.alert(e.data)
+    }
     dc.onopen = e => console.log("open!!!!");
     dc.onclose = e => console.log("closed!!!!!!");
 }
 
-const negotiate = async () => {
+const negotiate = async (renegotiation) => {
     const id = v4();
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
-    socket.emit('peer-connect', {sdp: peerConnection.localDescription, id: id});
+    socket.emit('peer-connect', {sdp: peerConnection.localDescription, id: id, reneg: renegotiation});
 }
 
 const initiateWebRTCConnection = async () => {
@@ -29,7 +31,7 @@ const initiateWebRTCConnection = async () => {
         socket.emit('newICECandidate', e.candidate);
     };
     setupDataChannel();
-    await negotiate();
+    await negotiate(false);
 }
 
 socket.on('newICECandidate', (params) => {

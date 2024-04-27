@@ -22,7 +22,7 @@ export default function useAudioRecorder() {
             await navigator.mediaDevices.getUserMedia({audio: true});
         peerConnection.onnegotiationneeded = () => {
             console.log("Negotiation needed!");
-            negotiate().then(() => console.log("Negotiation done"));
+            negotiate(true).then(() => console.log("Negotiation done"));
         }
         peerConnection.addTrack(audioStream.getAudioTracks()[0], audioStream);
         audioContext.current = new (window.AudioContext || window.webkitAudioContex)();

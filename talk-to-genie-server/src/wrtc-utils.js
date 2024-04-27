@@ -19,7 +19,10 @@ const initialisePeerConnection = () => {
   pc.ondatachannel = e => {
     console.log("Received data channel", e);
     const receiveChannel = e.channel;
-    receiveChannel.onmessage =e =>  console.log("messsage received!!!"  + e.data )
+    receiveChannel.onmessage =e =>  {
+      console.log("messsage received!!!"  + e.data );
+      receiveChannel.send("Pong!");
+    }
     receiveChannel.onopen = e => console.log("open!!!!");
     receiveChannel.onclose =e => console.log("closed!!!!!!");
   };
@@ -52,23 +55,27 @@ function startStreaming() {
 }
 
 function stopStreaming(fileName) {
-  audioSink.removeEventListener('data', onAudioData);
+  if (audioSink) {
+    audioSink.removeEventListener('data', onAudioData);
+  }
   pc.removeEventListener("track", handleTrack);
   audioSink = null;
   return createAudioFile(fileName, audioStream);
 }
 
 
-async function initiateConnection(sdp, remoteId) {
+async function initiateConnection(sdp, remoteId, reneg) {
     if (offers[remoteId]) {
         console.log(`${remoteId} is already connected. Skipping!`);
         return null;
     } else {
-        console.log("Initiating new connection w: ", sdp, remoteId);
-        if (pc) {
-          pc.close();
+        if (!reneg) {
+          console.log("Initiating new connection w: ", sdp, remoteId);
+          if (pc) {
+            pc.close();
+          }
+          initialisePeerConnection();
         }
-        initialisePeerConnection();
         offers[remoteId] = sdp;
         await pc.setRemoteDescription(sdp);
         console.log("Creating new answer!");

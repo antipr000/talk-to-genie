@@ -8,7 +8,7 @@ const AudioInput = ({addUserAudio}) => {
 
 
     return (
-        <div className="fw h-auto d-flex flex-start">
+        <div className="d-flex flex-start">
             {!isRecording ? <RoundIcon icon="microphone" onClick={() => { startRecording(addUserAudio) }}/> : 
             <RoundIcon icon="stop"/>}
         </div>

@@ -35,10 +35,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('peer-connect', async ({ sdp, id }) => {
+  socket.on('peer-connect', async ({ sdp, id, reneg }) => {
     console.log("Here, sdp is", sdp);
     const remoteId = uuidv4();
-    const {pc, answer} = await initiateConnection(sdp, id);
+    const {pc, answer} = await initiateConnection(sdp, id, reneg);
     if (pc) {
       peerConnection = pc;
       peerConnection.onicecandidate = (event) => {
