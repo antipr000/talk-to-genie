@@ -5,7 +5,7 @@ const BotResponse = ({ encodedAudio }) => {
     return (
         <div className="d-flex" style={{ gap: "20px" }}>
             <RoundIcon icon="desktop"/>
-            <AudioPlayer src={encodedAudio} autoPlay={false}/>
+            <AudioPlayer src={encodedAudio} autoPlay={true}/>
         </div>
     )
 }

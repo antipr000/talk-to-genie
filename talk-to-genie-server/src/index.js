@@ -8,13 +8,8 @@ const { uploadFile, downloadFile } = require('./s3-utils');
 const { startTranscriptionJob, checkIfTranscriptionDone } = require('./transcribe');
 const { getChatCompletionCached, getChatCompletion } = require('./openai-utils');
 const { convertTextToSpeech } = require('./polly-utils');
-const { nonstandard: {
-          RTCAudioSink,
-          RTCVideoSink
-        } } = require('wrtc');
-const { pc, initiateConnection, startStreaming, stopStreaming } = require('./wrtc-utils');
+const { initiateConnection, startStreaming, stopStreaming } = require('./wrtc-utils');
 const fs = require('fs');
-const path = require('path');
  
 const app = express();
 app.use(cors());
@@ -25,29 +20,34 @@ const io = socketIo(server);
 io.on('connection', (socket) => {
   console.log('Here connected to client');
   
+  let peerConnection;
 
   socket.on('connected', () => {
     console.log("Connected via socket");
-    pc.onicecandidate = (event) => {
-      console.log("ICE candidate: ", event.candidate);
-      socket.emit('newICECandidate', event);
-    }
   });
 
   socket.on('newICECandidate', async (candidate) => {
     if (candidate) {
       console.log('Received ICE candidate', candidate);
-
-      await pc.addIceCandidate(candidate);
+      if (peerConnection) {
+        await peerConnection.addIceCandidate(candidate);
+      }
     }
   });
 
   socket.on('peer-connect', async ({ sdp, id }) => {
     console.log("Here, sdp is", sdp);
     const remoteId = uuidv4();
-    const answer = await initiateConnection(sdp, id);
-    if (answer) {
-      socket.emit('peer-connect', { sdp: answer, id: remoteId });
+    const {pc, answer} = await initiateConnection(sdp, id);
+    if (pc) {
+      peerConnection = pc;
+      peerConnection.onicecandidate = (event) => {
+        console.log("ICE candidate: ", event.candidate);
+        socket.emit('newICECandidate', event);
+      }
+      if (answer) {
+        socket.emit('peer-connect', { sdp: answer, id: remoteId });
+      }
     }
   });
 
@@ -56,6 +56,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('stop-streaming', async () => {
+    console.log("Stream stopped!");
     const fileName = `${v4()}.mp3`;
     const localPath = await stopStreaming(fileName);
 

@@ -1,53 +1,28 @@
 const { PassThrough } = require('stream');
 const { nonstandard: {
     RTCAudioSink,
-    RTCVideoSink
   },
-RTCPeerConnection,
-RTCSessionDescription,
-RTCIceCandidate } = require('wrtc');
-const child = require('child_process');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
-const ffmpeg = require('fluent-ffmpeg');
-ffmpeg.setFfmpegPath(ffmpegPath);
-// const { StreamInput } = require('fluent-ffmpeg-multistream');
-const path = require('path');
-const fs = require('fs');
+RTCPeerConnection} = require('wrtc');
+const { createAudioFile } = require('./ffmpeg.processor');
 
 const offers = {};
 
-let pc = new RTCPeerConnection({
-    sdpSemantic: 'unified-plan'
-});
+let pc;
 
 let audioStream, audioSink;
 
+const initialisePeerConnection = () => {
+  pc = new RTCPeerConnection({
+    sdpSemantic: 'unified-plan'
+  });
 
-pc.ondatachannel = e => {
+  pc.ondatachannel = e => {
     console.log("Received data channel", e);
     const receiveChannel = e.channel;
     receiveChannel.onmessage =e =>  console.log("messsage received!!!"  + e.data )
     receiveChannel.onopen = e => console.log("open!!!!");
     receiveChannel.onclose =e => console.log("closed!!!!!!");
-};
-
-const GuardarDatosAudio = (stream)=>{
-  var myREPL = child.spawn('node');
-  myFile = fs.createWriteStream('./4.sock');
-  myREPL.stdout.pipe(process.stdout, { end: false });
-  myREPL.stdout.pipe(myFile);
-  myREPL.stdin.on("end", function() {
-    process.stdout.write("REPL stream ended.");
-    console.log('Salir')
-  });
-  
-  myREPL.on('exit', function (code) {
-    console.log('Salir')
-    process.exit(code);
-  });
-  stream.pipe(myREPL.stdin, { end: false });
-  stream.pipe(myFile);
-  return './4.sock'
+  };
 }
 
 const onAudioData = ({ samples: { buffer } }) => {
@@ -70,11 +45,6 @@ const handleTrack = (event) => {
 
 
   audioSink.addEventListener('data', onAudioData);
-
-  audioStream.on('end', () => {
-    console.log("Stream ended!");
-    audioSink.removeEventListener('data', onAudioData);
-  });
 }
 
 function startStreaming() {
@@ -84,28 +54,8 @@ function startStreaming() {
 function stopStreaming(fileName) {
   audioSink.removeEventListener('data', onAudioData);
   pc.removeEventListener("track", handleTrack);
-  const guardarAudio = GuardarDatosAudio(audioStream);
-  const outputAudioPath = path.join("generated", fileName);
-  return new Promise((resolve, reject) => {
-    ffmpeg()
-      .addInput(guardarAudio)
-      .addInputOptions([
-        '-f s16le',
-        '-ar 48k',
-        '-ac 1',
-      ])
-      .on('start', () => {
-        console.log('Creating audio file.');
-      })
-      .on('end', () => {
-        console.log('Created audio file');
-        audioStream = null;
-        audioSink = null;
-        resolve(outputAudioPath);
-      })
-      .output(outputAudioPath)
-      .run();
-  });
+  audioSink = null;
+  return createAudioFile(fileName, audioStream);
 }
 
 
@@ -115,13 +65,17 @@ async function initiateConnection(sdp, remoteId) {
         return null;
     } else {
         console.log("Initiating new connection w: ", sdp, remoteId);
+        if (pc) {
+          pc.close();
+        }
+        initialisePeerConnection();
         offers[remoteId] = sdp;
         await pc.setRemoteDescription(sdp);
         console.log("Creating new answer!");
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        return answer;
+        return {pc, answer};
     }
 }
 
-module.exports = { pc, initiateConnection, startStreaming, stopStreaming };
+module.exports = { pc, initiateConnection, startStreaming, stopStreaming, audioSink };
